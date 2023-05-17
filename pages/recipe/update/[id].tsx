@@ -1,17 +1,22 @@
-import React, { useState } from "react"
-import Layout from "../components/Layout"
-import Router from "next/router"
+import Layout from "../../../components/Layout"
+import Router, { useRouter } from "next/router"
 import gql from "graphql-tag"
 import { useMutation } from "@apollo/client"
+import client from "../../../lib/apollo-client"
+import { RecipeProps } from "../../../components/Recipe"
+import { GetServerSideProps } from "next"
+import React, { useState } from "react"
 
-const CreateDraftMutation = gql`
-  mutation addRecipe(
+const UpdateMutation = gql`
+  mutation updateRecipe(
+    $id: ID!
     $title: String!
     $description: String
     $ingredients: [String!]!
   ) {
-    addRecipe(
-      newRecipeData: {
+    updateRecipe(
+      updateRecipeData: {
+        id: $id
         title: $title
         description: $description
         ingredients: $ingredients
@@ -26,16 +31,18 @@ const CreateDraftMutation = gql`
   }
 `
 
-function Draft() {
-  const [title, setTitle] = useState("")
-  const [description, setDescription] = useState("")
-  const [ingredients, setIngredients] = useState("")
-  console.log(
-    "🚀DD10 ~ file: create.tsx:33 ~ Draft ~ ingredients:",
-    ingredients
-  )
+const Post: React.FC<{ data: { recipe: RecipeProps } }> = props => {
+  const id = useRouter().query.id
+  const [updateRecipe] = useMutation(UpdateMutation)
+  const {
+    title: titleData,
+    description: descriptionData,
+    ingredients: ingredientsData,
+  } = props.data.recipe
 
-  const [createDraft] = useMutation(CreateDraftMutation)
+  const [title, setTitle] = useState(titleData)
+  const [description, setDescription] = useState(descriptionData)
+  const [ingredients, setIngredients] = useState(ingredientsData.join(", "))
 
   return (
     <Layout>
@@ -44,8 +51,9 @@ function Draft() {
           onSubmit={async e => {
             e.preventDefault()
 
-            await createDraft({
+            await updateRecipe({
               variables: {
+                id,
                 title,
                 ingredients: ingredients.split(","),
                 description,
@@ -78,7 +86,7 @@ function Draft() {
           <input
             disabled={!ingredients || !title || !description}
             type="submit"
-            value="Create"
+            value="Update"
           />
           <a className="back" href="#" onClick={() => Router.push("/")}>
             or Cancel
@@ -117,4 +125,32 @@ function Draft() {
   )
 }
 
-export default Draft
+export const getServerSideProps: GetServerSideProps = async context => {
+  const id = Array.isArray(context.params?.id)
+    ? context.params?.id[0]
+    : context.params?.id
+
+  const { data } = await client.query({
+    query: gql`
+      query recipe($id: String!) {
+        recipe(id: $id) {
+          id
+          description
+          creationDate
+          ingredients
+          title
+        }
+      }
+    `,
+
+    variables: { id },
+  })
+
+  return {
+    props: {
+      data,
+    },
+  }
+}
+
+export default Post

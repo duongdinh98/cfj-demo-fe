@@ -1,17 +1,17 @@
 import Layout from "../components/Layout"
 import gql from "graphql-tag"
 import client from "../lib/apollo-client"
-import Post, { PostProps } from "../components/Post"
+import Recipe, { RecipeProps } from "../components/Recipe"
 
-const Blog: React.FC<{ data: { feed: PostProps[] } }> = props => {
+const Blog: React.FC<{ data: { recipes: RecipeProps[] } }> = props => {
   return (
     <Layout>
       <div className="page">
-        <h1>My Blog</h1>
+        <h1>My Recipe</h1>
         <main>
-          {props.data.feed.map(post => (
-            <div key={post.id} className="post">
-              <Post post={post} />
+          {props.data.recipes.map(recipe => (
+            <div key={recipe.id} className="post">
+              <Recipe recipe={recipe} />
             </div>
           ))}
         </main>
@@ -37,16 +37,13 @@ const Blog: React.FC<{ data: { feed: PostProps[] } }> = props => {
 export async function getServerSideProps() {
   const { data } = await client.query({
     query: gql`
-      query FeedQuery {
-        feed {
+      query {
+        recipes(skip: 0, take: 20) {
           id
+          description
+          creationDate
+          ingredients
           title
-          content
-          published
-          author {
-            id
-            name
-          }
         }
       }
     `,
@@ -55,6 +52,7 @@ export async function getServerSideProps() {
   return {
     props: {
       data,
+      revalidate: 0,
     },
   }
 }
